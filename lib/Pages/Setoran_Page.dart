@@ -2,251 +2,193 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-import 'SetoranFormPage.dart';
+import 'setoran_detail_page.dart';
 
 class SetoranPage extends StatefulWidget {
-  const SetoranPage({Key? key}) : super(key: key);
+  const SetoranPage({super.key});
 
   @override
   State<SetoranPage> createState() => _SetoranPageState();
 }
 
 class _SetoranPageState extends State<SetoranPage> {
-  final TextEditingController _nimController = TextEditingController();
-  Map<String, dynamic>? _info;
-  List<dynamic> _setoranSurah = [];
-  List<Map<String, dynamic>> _setoranList = [];
-  bool _isLoading = false;
+  final TextEditingController _searchController = TextEditingController();
+  List<dynamic> _mahasiswaPA = [];
+  List<dynamic> _filteredMahasiswaPA = [];
+  bool _isLoadingMahasiswa = false;
+
+  final String apiBaseUrl = 'https://api.tif.uin-suska.ac.id/setoran-dev/v1';
 
   @override
   void initState() {
     super.initState();
-    _loadSavedNIMAndFetch();
-    _loadSetoranListFromPrefs();
+    _fetchMahasiswaPA();
   }
 
-  Future<void> _loadSavedNIMAndFetch() async {
+  Future<String?> _getToken() async {
     final prefs = await SharedPreferences.getInstance();
-    final savedNIM = prefs.getString('nim');
-    if (savedNIM != null) {
-      _nimController.text = savedNIM;
-      fetchSetoranByNIM(savedNIM);
-    }
+    return prefs.getString('access_token');
   }
 
-  Future<void> _loadSetoranListFromPrefs() async {
-    final prefs = await SharedPreferences.getInstance();
-    final jsonString = prefs.getString('setoran_list');
-    if (jsonString != null) {
-      final List decoded = json.decode(jsonString);
-      setState(() {
-        _setoranList = decoded.cast<Map<String, dynamic>>();
-      });
-    }
-  }
-
-  Future<void> fetchSetoranByNIM(String nim) async {
+  Future<void> _fetchMahasiswaPA() async {
     setState(() {
-      _isLoading = true;
-      _info = null;
-      _setoranSurah = [];
+      _isLoadingMahasiswa = true;
     });
 
-    final prefs = await SharedPreferences.getInstance();
-    final accessToken = prefs.getString('access_token');
-
-    if (accessToken == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Token akses tidak ditemukan')),
-      );
-      setState(() => _isLoading = false);
+    final token = await _getToken();
+    if (token == null) {
+      debugPrint('[ERROR] Token null');
+      setState(() => _isLoadingMahasiswa = false);
       return;
     }
-
-    final url = Uri.parse(
-      'https://api.tif.uin-suska.ac.id/setoran-dev/v1/mahasiswa/setoran/$nim',
-    );
 
     try {
-      final response = await http.get(
-        url,
-        headers: {'Authorization': 'Bearer $accessToken'},
-      );
+      final url = Uri.parse('$apiBaseUrl/dosen/pa-saya');
+      final response = await http.get(url, headers: {
+        'Authorization': 'Bearer $token',
+      });
 
       if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final info = data['data']['info'];
-        final surah = data['data']['setoran']['surah'];
+        final result = json.decode(response.body);
+        debugPrint('[INFO] Respon mahasiswa PA: $result');
 
-        setState(() {
-          _info = info;
-          _setoranSurah = surah ?? [];
-        });
+        final mahasiswaList = result['data']?['info_mahasiswa_pa']?['daftar_mahasiswa'];
+        if (mahasiswaList != null && mahasiswaList is List) {
+          setState(() {
+            _mahasiswaPA = mahasiswaList;
+            _filteredMahasiswaPA = _mahasiswaPA;
+          });
+        } else {
+          debugPrint('[WARNING] daftar_mahasiswa tidak ditemukan atau bukan List');
+        }
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Gagal memuat data: ${response.statusCode}')),
-        );
+        debugPrint('[ERROR] Gagal load mahasiswa PA: ${response.statusCode} - ${response.body}');
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Terjadi kesalahan: $e')),
-      );
+      debugPrint('[ERROR] fetchMahasiswaPA: $e');
     } finally {
-      setState(() => _isLoading = false);
+      setState(() => _isLoadingMahasiswa = false);
     }
   }
 
-  void _showInfoMahasiswa() {
-    if (_info == null) return;
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Detail Mahasiswa'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Angkatan: ${_info!['angkatan'] ?? '-'}'),
-            Text('Semester: ${_info!['semester'] ?? '-'}'),
-            Text('Dosen PA: ${_info!['dosen_pa']?['nama'] ?? 'Tidak ada'}'),
-            Text('Email: ${_info!['email'] ?? '-'}'),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Tutup'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _handleSubmitSetoran() async {
-    final nim = _nimController.text.trim();
-    if (nim.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Silakan isi NIM terlebih dahulu')),
-      );
+  void _filterMahasiswa(String keyword) {
+    if (keyword.isEmpty) {
+      setState(() {
+        _filteredMahasiswaPA = _mahasiswaPA;
+      });
       return;
     }
 
-    final result = await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => const SetoranFormPage(),
-        settings: RouteSettings(arguments: nim),
-      ),
-    );
+    setState(() {
+      _filteredMahasiswaPA = _mahasiswaPA.where((mhs) {
+        final nama = (mhs['nama'] ?? '').toString().toLowerCase();
+        final nim = (mhs['nim'] ?? '').toString();
+        return nama.contains(keyword.toLowerCase()) || nim.contains(keyword);
+      }).toList();
+    });
+  }
 
-    if (result == true) {
-      await Future.delayed(const Duration(seconds: 1));
-      fetchSetoranByNIM(nim);
-      _loadSetoranListFromPrefs(); // muat ulang dari prefs
+  Future<void> _logout() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('access_token');
+    if (context.mounted) {
+      Navigator.pushReplacementNamed(context, '/login');
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFF547792),  // Warna background halaman (#547792)
       appBar: AppBar(
-        title: const Text('Setoran Saya'),
-        backgroundColor: Colors.blue[800],
+        title: const Text('Daftar Mahasiswa PA'),
+        backgroundColor: const Color(0xFF547792),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            tooltip: 'Logout',
+            onPressed: () async {
+              final confirm = await showDialog<bool>(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text('Logout'),
+                  content: const Text('Yakin ingin logout?'),
+                  actions: [
+                    TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Batal')),
+                    ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('Ya')),
+                  ],
+                ),
+              );
+
+              if (confirm == true) {
+                await _logout();
+              }
+            },
+          ),
+        ],
       ),
       body: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(12),
         child: Column(
           children: [
             TextField(
-              controller: _nimController,
+              controller: _searchController,
               decoration: InputDecoration(
-                labelText: 'Masukkan NIM',
+                labelText: 'Cari Nama/NIM Mahasiswa',
                 border: const OutlineInputBorder(),
+                enabledBorder: OutlineInputBorder(
+                  borderSide: BorderSide(color: Colors.white),
+                  borderRadius: BorderRadius.circular(4.0),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderSide: BorderSide(color: Colors.white, width: 2.0),
+                  borderRadius: BorderRadius.circular(4.0),
+                ),
                 suffixIcon: IconButton(
                   icon: const Icon(Icons.search),
-                  onPressed: () {
-                    final nim = _nimController.text.trim();
-                    if (nim.isNotEmpty) {
-                      SharedPreferences.getInstance().then((prefs) {
-                        prefs.setString('nim', nim);
-                      });
-                      fetchSetoranByNIM(nim);
-                    }
-                  },
+                  onPressed: () => _filterMahasiswa(_searchController.text.trim()),
+                  color: Colors.white,
                 ),
+                labelStyle: const TextStyle(color: Colors.white),
+              ),
+              style: const TextStyle(color: Colors.white),
+              onSubmitted: (value) => _filterMahasiswa(value.trim()),
+            ),
+
+            const SizedBox(height: 12),
+            Expanded(
+              child: _isLoadingMahasiswa
+                  ? const Center(child: CircularProgressIndicator())
+                  : _filteredMahasiswaPA.isEmpty
+                  ? const Center(child: Text('Mahasiswa tidak ditemukan.'))
+                  : ListView.builder(
+                itemCount: _filteredMahasiswaPA.length,
+                itemBuilder: (context, index) {
+                  final mhs = _filteredMahasiswaPA[index];
+                  return Card(
+                    color: const Color(0xFFECEFCA), // Warna card (#ECEFCA)
+                    child: ListTile(
+                      title: Text(mhs['nama'] ?? '-'),
+                      subtitle: Text('NIM: ${mhs['nim'] ?? '-'}'),
+                      trailing: const Icon(Icons.arrow_forward_ios),
+                      onTap: () {
+                        final nim = mhs['nim'];
+                        if (nim != null) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => SetoranDetailPage(nim: nim.toString()),
+                            ),
+                          );
+                        }
+                      },
+                    ),
+                  );
+                },
               ),
             ),
-            const SizedBox(height: 16),
-            if (_info != null)
-              GestureDetector(
-                onTap: _showInfoMahasiswa,
-                child: Card(
-                  elevation: 6,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _info!['nama'] ?? 'Nama Mahasiswa',
-                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                        ),
-                        Text('NIM: ${_info!['nim'] ?? '-'}'),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            const SizedBox(height: 10),
-            if (_isLoading)
-              const CircularProgressIndicator()
-            else if (_setoranSurah.isNotEmpty)
-              Expanded(
-                child: ListView.builder(
-                  itemCount: _setoranSurah.length,
-                  itemBuilder: (_, index) {
-                    final surah = _setoranSurah[index];
-                    return Card(
-                      elevation: 2,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      child: ListTile(
-                        leading: Icon(
-                          surah['sudah_setor'] ? Icons.check_circle : Icons.pending,
-                          color: surah['sudah_setor'] ? Colors.green : Colors.orange,
-                        ),
-                        title: Text('${surah['nama']} (${surah['nama_arab']})'),
-                        subtitle: Text('Label: ${surah['label']}'),
-                      ),
-                    );
-                  },
-                ),
-              )
-            else
-              const Text('Belum ada data setoran untuk Juz 30.'),
-
-            // Tambahan untuk menampilkan setoran yang baru disimpan
-            if (_setoranList.isNotEmpty) ...[
-              const SizedBox(height: 16),
-              const Text(
-                'Setoran yang Baru Disimpan:',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              ..._setoranList.map((item) => Card(
-                child: ListTile(
-                  title: Text(item['nama_komponen_setoran'] ?? '-'),
-                  subtitle: Text('ID: ${item['id_komponen_setoran'] ?? '-'}'),
-                ),
-              )),
-            ],
           ],
         ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _handleSubmitSetoran,
-        backgroundColor: Colors.blue[100],
-        child: const Icon(Icons.add),
       ),
     );
   }

@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'Pages/Login_Page.dart';
-import 'Pages/Setoran_Page.dart'; // import halaman SetoranPage
-import 'package:setorantif_dosen1/Pages/SetoranFormPage.dart';
-
+import 'Pages/Setoran_Page.dart';
+import 'Pages/SetoranFormPage.dart';
 
 void main() {
   runApp(const SetoranDosenApp());
@@ -16,10 +15,24 @@ class SetoranDosenApp extends StatelessWidget {
     return MaterialApp(
       title: 'Setoran Hafalan Mahasiswa Teknik Informatika',
       initialRoute: '/',
-      routes: {
-        '/': (context) => LoginPage(),
-        '/setoran': (context) => SetoranPage(), // menambahkan route ke SetoranPage
-        '/form-setoran': (context) => SetoranFormPage(),
+      onGenerateRoute: (settings) {
+        switch (settings.name) {
+          case '/':
+            return MaterialPageRoute(builder: (_) => LoginPage());
+          case '/setoran':
+            return MaterialPageRoute(builder: (_) => SetoranPage());
+          case '/form-setoran':
+            final nim = settings.arguments as String;
+            return MaterialPageRoute(
+              builder: (_) => SetoranFormPage(nim: nim),
+            );
+          default:
+            return MaterialPageRoute(
+              builder: (_) => Scaffold(
+                body: Center(child: Text('Halaman tidak ditemukan')),
+              ),
+            );
+        }
       },
     );
   }
