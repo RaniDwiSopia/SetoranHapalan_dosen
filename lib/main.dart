@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'Pages/Login_Page.dart';
 import 'Pages/Setoran_Page.dart';
 import 'Pages/SetoranFormPage.dart';
+import 'Pages/InitialPage.dart';
 
 void main() {
   runApp(const SetoranDosenApp());
@@ -18,6 +19,8 @@ class SetoranDosenApp extends StatelessWidget {
       onGenerateRoute: (settings) {
         switch (settings.name) {
           case '/':
+            return MaterialPageRoute(builder: (_) => InitialPage());
+          case '/login':
             return MaterialPageRoute(builder: (_) => LoginPage());
           case '/setoran':
             return MaterialPageRoute(builder: (_) => SetoranPage());

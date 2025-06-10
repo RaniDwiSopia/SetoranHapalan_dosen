@@ -16,43 +16,62 @@ class _LoginPageState extends State<LoginPage> {
   bool _obscureText = true;
 
   Future<void> _login() async {
+    if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Email dan password wajib diisi')),
+      );
+      return;
+    }
+
     setState(() {
       _isLoading = true;
     });
 
     final authService = AuthService();
+
+    // Jangan panggil logout di sini, biar token tetap konsisten
+
     bool loginSuccess = await authService.login(
-      _emailController.text,
+      _emailController.text.trim(),
       _passwordController.text,
     );
 
     if (loginSuccess) {
+      final token = await authService.getAccessToken();
+      print('Token setelah login: $token');
+
+      await Future.delayed(const Duration(milliseconds: 100)); // biar simpan token selesai
+
+      if (!mounted) return;
       Navigator.pushReplacementNamed(context, '/setoran');
     } else {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Login gagal, periksa email dan password')),
       );
     }
 
-    setState(() {
-      _isLoading = false;
-    });
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF547792), // background #547792
+      backgroundColor: const Color(0xFF213448),
       appBar: AppBar(
         title: null,
-        backgroundColor: const Color(0xFF547792), // samakan warna AppBar
+        backgroundColor: const Color(0xFF213448),
         elevation: 0, // hilangkan shadow supaya terlihat menyatu
       ),
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(16.0),
           child: Card(
-            color: Colors.white, // warna putih untuk card
+            color: const Color(0xFFF5F5F5), // warna putih untuk card
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16.0),
             ),
@@ -73,7 +92,7 @@ class _LoginPageState extends State<LoginPage> {
                     style: TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.bold,
-                      color: const Color(0xFF547792), // warna tulisan 'Login' agar serasi
+                      color: const Color(0xFF213448), // warna tulisan 'Login' agar serasi
                     ),
                   ),
                   const SizedBox(height: 32),
@@ -84,6 +103,7 @@ class _LoginPageState extends State<LoginPage> {
                       prefixIcon: Icon(Icons.person),
                       border: OutlineInputBorder(),
                     ),
+                    keyboardType: TextInputType.emailAddress,
                   ),
                   const SizedBox(height: 16),
                   TextField(
@@ -110,10 +130,10 @@ class _LoginPageState extends State<LoginPage> {
                       ? const CircularProgressIndicator()
                       : ElevatedButton(
                     onPressed: _login,
-                    child: const Text('Login'),
+                    child: const Text('Login', style: TextStyle(color: Colors.white),),
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 30.0),
-                      backgroundColor: Colors.white, // tombol warna sama seperti background
+                      backgroundColor: const Color(0xFF213448),
                     ),
                   ),
                 ],

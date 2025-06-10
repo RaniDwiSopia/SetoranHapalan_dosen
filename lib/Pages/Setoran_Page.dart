@@ -1,8 +1,12 @@
 import 'dart:convert';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'setoran_detail_page.dart';
+import 'log_page.dart';
+import 'profile_page.dart';
+import 'package:setorantif_dosen1/Services/Auth_service.dart';
 
 class SetoranPage extends StatefulWidget {
   const SetoranPage({super.key});
@@ -13,59 +17,100 @@ class SetoranPage extends StatefulWidget {
 
 class _SetoranPageState extends State<SetoranPage> {
   final TextEditingController _searchController = TextEditingController();
+  final AuthService authService = AuthService();
+
   List<dynamic> _mahasiswaPA = [];
   List<dynamic> _filteredMahasiswaPA = [];
   bool _isLoadingMahasiswa = false;
 
+  int _selectedIndex = 0;
   final String apiBaseUrl = 'https://api.tif.uin-suska.ac.id/setoran-dev/v1';
+
+  Timer? _tokenRefreshTimer;
 
   @override
   void initState() {
     super.initState();
+    _startTokenRefreshTimer();
     _fetchMahasiswaPA();
   }
 
-  Future<String?> _getToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('access_token');
+  void _startTokenRefreshTimer() {
+    _tokenRefreshTimer = Timer.periodic(const Duration(minutes: 13), (_) async {
+      try {
+        await authService.refreshToken();
+        debugPrint("[INFO] Token berhasil diperbarui otomatis.");
+      } catch (e) {
+        debugPrint("[ERROR] Gagal memperbarui token otomatis: $e");
+      }
+    });
+  }
+
+  Future<void> showSessionExpiredDialog() async {
+    if (!mounted) return;
+    await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Sesi Berakhir'),
+        content: const Text('Sesi login Anda telah berakhir. Silakan login kembali.'),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              _logout();
+            },
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _fetchMahasiswaPA() async {
-    setState(() {
-      _isLoadingMahasiswa = true;
-    });
-
-    final token = await _getToken();
-    if (token == null) {
-      debugPrint('[ERROR] Token null');
-      setState(() => _isLoadingMahasiswa = false);
-      return;
-    }
-
+    setState(() => _isLoadingMahasiswa = true);
     try {
+      String? token = await authService.getAccessToken();
+      if (token == null) {
+        debugPrint('[ERROR] Token tidak ditemukan');
+        await showSessionExpiredDialog();
+        return;
+      }
+
       final url = Uri.parse('$apiBaseUrl/dosen/pa-saya');
-      final response = await http.get(url, headers: {
-        'Authorization': 'Bearer $token',
-      });
+      http.Response response = await http.get(url, headers: {'Authorization': 'Bearer $token'});
+
+      if (response.statusCode == 401) {
+        debugPrint('[INFO] Token expired, mencoba refresh...');
+        bool refreshed = await authService.refreshToken();
+        if (refreshed) {
+          token = await authService.getAccessToken();
+          if (token != null) {
+            response = await http.get(url, headers: {'Authorization': 'Bearer $token'});
+          } else {
+            await showSessionExpiredDialog();
+            return;
+          }
+        } else {
+          await showSessionExpiredDialog();
+          return;
+        }
+      }
 
       if (response.statusCode == 200) {
         final result = json.decode(response.body);
-        debugPrint('[INFO] Respon mahasiswa PA: $result');
-
         final mahasiswaList = result['data']?['info_mahasiswa_pa']?['daftar_mahasiswa'];
+
         if (mahasiswaList != null && mahasiswaList is List) {
           setState(() {
             _mahasiswaPA = mahasiswaList;
-            _filteredMahasiswaPA = _mahasiswaPA;
+            _filteredMahasiswaPA = mahasiswaList;
           });
-        } else {
-          debugPrint('[WARNING] daftar_mahasiswa tidak ditemukan atau bukan List');
         }
       } else {
-        debugPrint('[ERROR] Gagal load mahasiswa PA: ${response.statusCode} - ${response.body}');
+        debugPrint('[ERROR] ${response.statusCode} - ${response.body}');
       }
     } catch (e) {
-      debugPrint('[ERROR] fetchMahasiswaPA: $e');
+      debugPrint('[ERROR] $e');
     } finally {
       setState(() => _isLoadingMahasiswa = false);
     }
@@ -73,15 +118,13 @@ class _SetoranPageState extends State<SetoranPage> {
 
   void _filterMahasiswa(String keyword) {
     if (keyword.isEmpty) {
-      setState(() {
-        _filteredMahasiswaPA = _mahasiswaPA;
-      });
+      setState(() => _filteredMahasiswaPA = _mahasiswaPA);
       return;
     }
 
     setState(() {
       _filteredMahasiswaPA = _mahasiswaPA.where((mhs) {
-        final nama = (mhs['nama'] ?? '').toString().toLowerCase();
+        final nama = (mhs['nama'] ?? '').toLowerCase();
         final nim = (mhs['nim'] ?? '').toString();
         return nama.contains(keyword.toLowerCase()) || nim.contains(keyword);
       }).toList();
@@ -91,22 +134,22 @@ class _SetoranPageState extends State<SetoranPage> {
   Future<void> _logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('access_token');
-    if (context.mounted) {
-      Navigator.pushReplacementNamed(context, '/login');
+    await prefs.remove('refresh_token');
+    if (mounted) {
+      Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
+  Widget buildMahasiswaList() {
     return Scaffold(
-      backgroundColor: const Color(0xFF547792),  // Warna background halaman (#547792)
+      backgroundColor: const Color(0xFF213448),
       appBar: AppBar(
         title: const Text('Daftar Mahasiswa PA'),
-        backgroundColor: const Color(0xFF547792),
+        backgroundColor: const Color(0xFF213448),
+        foregroundColor: Colors.white,
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
-            tooltip: 'Logout',
             onPressed: () async {
               final confirm = await showDialog<bool>(
                 context: context,
@@ -119,10 +162,7 @@ class _SetoranPageState extends State<SetoranPage> {
                   ],
                 ),
               );
-
-              if (confirm == true) {
-                await _logout();
-              }
+              if (confirm == true) await _logout();
             },
           ),
         ],
@@ -134,54 +174,69 @@ class _SetoranPageState extends State<SetoranPage> {
             TextField(
               controller: _searchController,
               decoration: InputDecoration(
-                labelText: 'Cari Nama/NIM Mahasiswa',
-                border: const OutlineInputBorder(),
-                enabledBorder: OutlineInputBorder(
-                  borderSide: BorderSide(color: Colors.white),
-                  borderRadius: BorderRadius.circular(4.0),
+                hintText: 'Cari',
+                hintStyle: const TextStyle(color: Colors.black),
+                fillColor: Colors.white,
+                filled: true,
+                prefixIcon: const Icon(Icons.search, color: Colors.black),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10.0),
+                  borderSide: BorderSide.none,
                 ),
-                focusedBorder: OutlineInputBorder(
-                  borderSide: BorderSide(color: Colors.white, width: 2.0),
-                  borderRadius: BorderRadius.circular(4.0),
-                ),
-                suffixIcon: IconButton(
-                  icon: const Icon(Icons.search),
-                  onPressed: () => _filterMahasiswa(_searchController.text.trim()),
-                  color: Colors.white,
-                ),
-                labelStyle: const TextStyle(color: Colors.white),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               ),
-              style: const TextStyle(color: Colors.white),
+              style: const TextStyle(color: Colors.black),
               onSubmitted: (value) => _filterMahasiswa(value.trim()),
+              onChanged: (value) => _filterMahasiswa(value.trim()),
             ),
-
             const SizedBox(height: 12),
             Expanded(
               child: _isLoadingMahasiswa
                   ? const Center(child: CircularProgressIndicator())
                   : _filteredMahasiswaPA.isEmpty
-                  ? const Center(child: Text('Mahasiswa tidak ditemukan.'))
+                  ? const Center(child: Text('Mahasiswa tidak ditemukan.', style: TextStyle(color: Colors.white)))
                   : ListView.builder(
                 itemCount: _filteredMahasiswaPA.length,
                 itemBuilder: (context, index) {
                   final mhs = _filteredMahasiswaPA[index];
                   return Card(
-                    color: const Color(0xFFECEFCA), // Warna card (#ECEFCA)
+                    color: const Color(0xFFF5F5F5),
                     child: ListTile(
                       title: Text(mhs['nama'] ?? '-'),
                       subtitle: Text('NIM: ${mhs['nim'] ?? '-'}'),
-                      trailing: const Icon(Icons.arrow_forward_ios),
-                      onTap: () {
-                        final nim = mhs['nim'];
-                        if (nim != null) {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => SetoranDetailPage(nim: nim.toString()),
-                            ),
-                          );
-                        }
-                      },
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.visibility),
+                            onPressed: () {
+                              final nim = mhs['nim'];
+                              if (nim != null) {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => SetoranDetailPage(nim: nim.toString()),
+                                  ),
+                                );
+                              }
+                            },
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.history),
+                            onPressed: () {
+                              final nim = mhs['nim'];
+                              if (nim != null) {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => LogPage(nim: nim.toString()),
+                                  ),
+                                );
+                              }
+                            },
+                          ),
+                        ],
+                      ),
                     ),
                   );
                 },
@@ -189,6 +244,36 @@ class _SetoranPageState extends State<SetoranPage> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _tokenRefreshTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final List<Widget> pages = [
+      buildMahasiswaList(),
+      const ProfilePage(),
+    ];
+
+    return Scaffold(
+      body: pages[_selectedIndex],
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _selectedIndex,
+        onTap: (index) => setState(() => _selectedIndex = index),
+        selectedItemColor: Colors.white,
+        unselectedItemColor: Colors.white70,
+        backgroundColor: const Color(0xFF213448),
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.group), label: 'Setoran'),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profil'),
+        ],
       ),
     );
   }

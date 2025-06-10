@@ -4,15 +4,26 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthService {
+  // Singleton setup
+  static final AuthService _instance = AuthService._internal();
+  factory AuthService() => _instance;
+  AuthService._internal() {
+    _startAutoRefresh();
+  }
+
+  static Timer? _refreshTimer;
+
   static const String kcUrl = 'https://id.tif.uin-suska.ac.id';
   static const String tokenUrl = '$kcUrl/realms/dev/protocol/openid-connect/token';
   static const String clientId = 'setoran-mobile-dev';
   static const String clientSecret = 'aqJp3xnXKudgC7RMOshEQP7ZoVKWzoSl';
-  static const String scope = 'openid email profile';
+  static const String scope = 'openid email roles profile';
   static const String baseUrl = 'https://api.tif.uin-suska.ac.id/setoran-dev/v1';
 
   Future<bool> login(String username, String password) async {
     try {
+      await logout();
+
       final response = await http.post(
         Uri.parse(tokenUrl),
         headers: {
@@ -33,11 +44,11 @@ class AuthService {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('access_token', data['access_token']);
         await prefs.setString('refresh_token', data['refresh_token']);
-        await prefs.setInt('token_time_millis', DateTime.now().millisecondsSinceEpoch); // simpan waktu token
+        await prefs.setInt('token_time_millis', DateTime.now().millisecondsSinceEpoch);
         print('Login berhasil, token disimpan.');
         return true;
       } else {
-        print('Login failed: ${response.statusCode} - ${response.body}');
+        print('Login gagal: ${response.statusCode} - ${response.body}');
         return false;
       }
     } catch (e) {
@@ -73,7 +84,7 @@ class AuthService {
         final data = json.decode(response.body);
         await prefs.setString('access_token', data['access_token']);
         await prefs.setString('refresh_token', data['refresh_token']);
-        await prefs.setInt('token_time_millis', DateTime.now().millisecondsSinceEpoch); // update waktu token
+        await prefs.setInt('token_time_millis', DateTime.now().millisecondsSinceEpoch);
         print('Refresh token berhasil.');
         return true;
       } else {
@@ -106,16 +117,20 @@ class AuthService {
     final now = DateTime.now().millisecondsSinceEpoch;
     final elapsed = now - tokenTime;
 
-    // Auto refresh jika token sudah lebih dari 13 menit (780000 ms)
-    if (elapsed > 780000) {
+    if (elapsed > 780000) { // >13 menit
       print('Token lebih dari 13 menit, mencoba refresh...');
       final refreshed = await refreshToken();
-      if (!refreshed) return null;
-      return prefs.getString('access_token'); // ambil token baru
+      if (!refreshed) {
+        print('[ERROR] Refresh token gagal, logout dan hapus token.');
+        await logout(); // <-- Tambahan: logout otomatis
+        return null;
+      }
+      return prefs.getString('access_token');
     }
 
     return accessToken;
   }
+
 
   Future<String?> getRefreshToken() async {
     final prefs = await SharedPreferences.getInstance();
@@ -133,7 +148,6 @@ class AuthService {
       return false;
     }
 
-    // Validasi isi payload sesuai struktur backend
     if (dataSetoran['data_setoran'] == null || (dataSetoran['data_setoran'] as List).isEmpty) {
       print('Data setoran tidak lengkap: data_setoran kosong.');
       return false;
@@ -165,8 +179,8 @@ class AuthService {
         print('Setoran berhasil dikirim.');
         return true;
       } else {
-        print('Gagal mengirim setoran: ${response.statusCode}');
         final responseBody = jsonDecode(response.body);
+        print('Gagal mengirim setoran: ${response.statusCode}');
         print('Pesan error: ${responseBody['message'] ?? response.body}');
         return false;
       }
@@ -174,5 +188,16 @@ class AuthService {
       print('Error saat mengirim setoran: $e');
       return false;
     }
+  }
+
+  void _startAutoRefresh() {
+    _refreshTimer?.cancel();
+    _refreshTimer = Timer.periodic(const Duration(minutes: 13), (_) async {
+      print('[Auto Refresh] Mengecek dan me-refresh token...');
+      final success = await refreshToken();
+      if (!success) {
+        print('[Auto Refresh] Refresh token gagal. Token mungkin sudah tidak valid.');
+      }
+    });
   }
 }

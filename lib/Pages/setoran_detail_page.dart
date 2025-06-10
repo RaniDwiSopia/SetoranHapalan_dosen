@@ -147,10 +147,11 @@ class _SetoranDetailPageState extends State<SetoranDetailPage> {
         .toList() ?? [];
 
     return Scaffold(
-      backgroundColor: const Color(0xFF547792),
+      backgroundColor: const Color(0xFF213448),
       appBar: AppBar(
         title: Text('Detail Setoran - NIM: ${widget.nim}'),
-        backgroundColor: const Color(0xFF547792),
+        backgroundColor: const Color(0xFF213448),
+        foregroundColor: Colors.white,
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -178,23 +179,37 @@ class _SetoranDetailPageState extends State<SetoranDetailPage> {
               Center(
                 child: Text(
                   info['nama'] ?? '-',
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 22),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 22,
+                    color: Colors.white,
+                  ),
                 ),
               ),
               Center(
-                child: Text('NIM: ${info['nim'] ?? '-'}'),
+                child: Text(
+                  'NIM: ${info['nim'] ?? '-'}',
+                  style: const TextStyle(color: Colors.white),
+                ),
               ),
               const SizedBox(height: 8),
               Center(
-                child: Text('Angkatan: ${info['angkatan'] ?? '-'}'),
+                child: Text(
+                  'Angkatan: ${info['angkatan'] ?? '-'}',
+                  style: const TextStyle(color: Colors.white),
+                ),
               ),
               Center(
-                child: Text('Semester: ${info['semester'] ?? '-'}'),
+                child: Text(
+                  'Semester: ${info['semester'] ?? '-'}',
+                  style: const TextStyle(color: Colors.white),
+                ),
               ),
+
               const SizedBox(height: 20),
-              const Text(
+                  const Text(
                 'Daftar Setoran Surah:',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white),
               ),
               const SizedBox(height: 10),
               if (daftarSetoranSurah.isEmpty)
@@ -231,7 +246,7 @@ class _SetoranDetailPageState extends State<SetoranDetailPage> {
                                 'Setoran: ${infoSetoran['tgl_setoran'] ?? '-'}',
                                 style: const TextStyle(fontSize: 11),
                               ),
-                              backgroundColor: Colors.blue.shade100,
+                              backgroundColor: Colors.teal.shade100,
                               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                               visualDensity: VisualDensity.compact,
                             ),
@@ -241,7 +256,7 @@ class _SetoranDetailPageState extends State<SetoranDetailPage> {
                                 'Dosen: ${dosen['nama'] ?? 'Belum disahkan'}',
                                 style: const TextStyle(fontSize: 11),
                               ),
-                              backgroundColor: Colors.orange.shade100,
+                              backgroundColor: Colors.teal.shade100,
                               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                               visualDensity: VisualDensity.compact,
                             ),

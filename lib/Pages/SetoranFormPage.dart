@@ -54,7 +54,9 @@ class _SetoranFormPageState extends State<SetoranFormPage> {
         final List detailSurah = data['data']['setoran']['detail'] ?? [];
 
         setState(() {
-          _daftarSurah = detailSurah.map<Map<String, String>>((surah) {
+          _daftarSurah = detailSurah
+              .where((surah) => surah['sudah_setor'] == false)
+              .map<Map<String, String>>((surah) {
             return {
               'id': surah['id'].toString(),
               'nama': surah['nama'].toString(),
@@ -155,15 +157,16 @@ class _SetoranFormPageState extends State<SetoranFormPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF547792),
+      backgroundColor: const Color(0xFF213448),
       appBar: AppBar(
         title: const Text('Input Setoran Mahasiswa'),
-        backgroundColor: const Color(0xFF547792),
+        backgroundColor: const Color(0xFF213448),
+        foregroundColor: Colors.white,
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Card(
-          color: const Color(0xFFECEFCA), // Warna card
+          color: const Color(0xFFF5F5F5), // Warna card
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),
