@@ -271,7 +271,7 @@ class _SetoranPageState extends State<SetoranPage> {
         unselectedItemColor: Colors.white70,
         backgroundColor: const Color(0xFF213448),
         items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.group), label: 'Setoran'),
+          BottomNavigationBarItem(icon: Icon(Icons.group), label: 'Daftar Mahasiswa'),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profil'),
         ],
       ),
