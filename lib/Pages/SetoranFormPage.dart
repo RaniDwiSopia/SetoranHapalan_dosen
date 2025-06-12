@@ -157,10 +157,10 @@ class _SetoranFormPageState extends State<SetoranFormPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF213448),
+      backgroundColor: const Color(0xFFAFB7AC),
       appBar: AppBar(
         title: const Text('Input Setoran Mahasiswa'),
-        backgroundColor: const Color(0xFF213448),
+        backgroundColor: const Color(0xFFAFB7AC),
         foregroundColor: Colors.white,
       ),
       body: Padding(

@@ -53,16 +53,25 @@ class _ProfilePageState extends State<ProfilePage> {
     return nama.trim().substring(0, 1).toUpperCase();
   }
 
+  Color generateColorFromEmail(String? email) {
+    if (email == null) return const Color(0xFFCCCCCC);
+    final hash = email.codeUnits.fold(0, (prev, element) => prev + element);
+    final r = (hash * 123) % 256;
+    final g = (hash * 321) % 256;
+    final b = (hash * 231) % 256;
+    return Color.fromARGB(255, r, g, b);
+  }
+
   Widget buildProfileHeader(String? nama, String? nip, String? email) {
     final inisial = getInisial(nama);
     return Column(
       children: [
         CircleAvatar(
           radius: 40,
-          backgroundColor: const Color(0xFF521C0D),
+          backgroundColor: generateColorFromEmail(email),
           child: Text(
             inisial,
-            style: const TextStyle(fontSize: 40, color: Colors.black),
+            style: const TextStyle(fontSize: 40, color: Colors.white),
           ),
         ),
         const SizedBox(height: 12),
@@ -80,11 +89,10 @@ class _ProfilePageState extends State<ProfilePage> {
           email ?? '-',
           style: const TextStyle(fontSize: 14, color: Colors.white),
         ),
-        const SizedBox(height: 32), // lebih banyak spasi sebelum Ringkasan
+        const SizedBox(height: 32),
       ],
     );
   }
-
 
   Widget buildRingkasanCard(List<dynamic> ringkasan) {
     return Card(
@@ -122,16 +130,16 @@ class _ProfilePageState extends State<ProfilePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF213448),
+      backgroundColor: const Color(0xFFAFB7AC),
       appBar: AppBar(
         title: const Text('Profil Dosen PA'),
-        backgroundColor: const Color(0xFF213448),
+        backgroundColor: const Color(0xFFAFB7AC),
         foregroundColor: Colors.white,
       ),
-      body: isLoading ?
-      const Center(child: CircularProgressIndicator())
-          : dosenData == null ?
-      const Center(child: Text('Data tidak tersedia'))
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : dosenData == null
+          ? const Center(child: Text('Data tidak tersedia'))
           : Padding(
         padding: const EdgeInsets.all(16.0),
         child: SingleChildScrollView(

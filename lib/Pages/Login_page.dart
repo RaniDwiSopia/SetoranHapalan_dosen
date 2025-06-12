@@ -61,10 +61,10 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF213448),
+      backgroundColor: const Color(0xFFAFB7AC),
       appBar: AppBar(
         title: null,
-        backgroundColor: const Color(0xFF213448),
+        backgroundColor: const Color(0xFFAFB7AC),
         elevation: 0, // hilangkan shadow supaya terlihat menyatu
       ),
       body: Center(
@@ -92,7 +92,7 @@ class _LoginPageState extends State<LoginPage> {
                     style: TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.bold,
-                      color: const Color(0xFF213448), // warna tulisan 'Login' agar serasi
+                      color: const Color(0xFFAFB7AC), // warna tulisan 'Login' agar serasi
                     ),
                   ),
                   const SizedBox(height: 32),
@@ -133,7 +133,7 @@ class _LoginPageState extends State<LoginPage> {
                     child: const Text('Login', style: TextStyle(color: Colors.white),),
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 30.0),
-                      backgroundColor: const Color(0xFF213448),
+                      backgroundColor: const Color(0xFFAFB7AC),
                     ),
                   ),
                 ],

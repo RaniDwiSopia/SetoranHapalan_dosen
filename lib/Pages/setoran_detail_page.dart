@@ -18,6 +18,14 @@ class _SetoranDetailPageState extends State<SetoranDetailPage> {
 
   final String apiBaseUrl = 'https://api.tif.uin-suska.ac.id/setoran-dev/v1';
 
+  Color getColorFromEmail(String email) {
+    final hash = email.hashCode;
+    final red = (hash & 0xFF0000) >> 16;
+    final green = (hash & 0x00FF00) >> 8;
+    final blue = (hash & 0x0000FF);
+    return Color.fromARGB(255, red, green, blue);
+  }
+
   @override
   void initState() {
     super.initState();
@@ -137,6 +145,7 @@ class _SetoranDetailPageState extends State<SetoranDetailPage> {
     }
   }
 
+
   @override
   Widget build(BuildContext context) {
     final info = _detailSetoran?['info'] ?? {};
@@ -147,10 +156,10 @@ class _SetoranDetailPageState extends State<SetoranDetailPage> {
         .toList() ?? [];
 
     return Scaffold(
-      backgroundColor: const Color(0xFF213448),
+      backgroundColor: const Color(0xFFAFB7AC),
       appBar: AppBar(
         title: Text('Detail Setoran - NIM: ${widget.nim}'),
-        backgroundColor: const Color(0xFF213448),
+        backgroundColor: const Color(0xFFAFB7AC),
         foregroundColor: Colors.white,
       ),
       body: _isLoading
@@ -166,7 +175,7 @@ class _SetoranDetailPageState extends State<SetoranDetailPage> {
               Center(
                 child: CircleAvatar(
                   radius: 36,
-                  backgroundColor: Colors.blue[800],
+                  backgroundColor: getColorFromEmail(info['email'] ?? 'noemail@example.com'),
                   child: Text(
                     info['nama'] != null && info['nama'].isNotEmpty
                         ? info['nama'][0].toUpperCase()
@@ -174,6 +183,7 @@ class _SetoranDetailPageState extends State<SetoranDetailPage> {
                     style: const TextStyle(fontSize: 36, color: Colors.white),
                   ),
                 ),
+
               ),
               const SizedBox(height: 12),
               Center(
@@ -213,7 +223,9 @@ class _SetoranDetailPageState extends State<SetoranDetailPage> {
               ),
               const SizedBox(height: 10),
               if (daftarSetoranSurah.isEmpty)
-                const Text('Belum ada setoran surah yang disetor.'),
+                const Text(
+                    'Belum ada setoran surah yang disetor.',
+                  style: TextStyle(color: Colors.white),),
               if (daftarSetoranSurah.isNotEmpty)
                 ListView.separated(
                   shrinkWrap: true,
