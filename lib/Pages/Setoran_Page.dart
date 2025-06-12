@@ -142,10 +142,10 @@ class _SetoranPageState extends State<SetoranPage> {
 
   Widget buildMahasiswaList() {
     return Scaffold(
-      backgroundColor: const Color(0xFFAFB7AC),
+      backgroundColor: const Color(0xFF131D4F),
       appBar: AppBar(
         title: const Text('Daftar Mahasiswa PA'),
-        backgroundColor: const Color(0xFFAFB7AC),
+        backgroundColor: const Color(0xFF131D4F),
         foregroundColor: Colors.white,
         actions: [
           IconButton(
@@ -269,7 +269,7 @@ class _SetoranPageState extends State<SetoranPage> {
         onTap: (index) => setState(() => _selectedIndex = index),
         selectedItemColor: Colors.white,
         unselectedItemColor: Colors.black,
-        backgroundColor: const Color(0xFFAFB7AC),
+        backgroundColor: const Color(0xFF131D4F),
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.group), label: 'Daftar Mahasiswa'),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profil'),

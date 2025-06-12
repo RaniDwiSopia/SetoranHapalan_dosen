@@ -156,10 +156,10 @@ class _SetoranDetailPageState extends State<SetoranDetailPage> {
         .toList() ?? [];
 
     return Scaffold(
-      backgroundColor: const Color(0xFFAFB7AC),
+      backgroundColor: const Color(0xFF131D4F),
       appBar: AppBar(
         title: Text('Detail Setoran - NIM: ${widget.nim}'),
-        backgroundColor: const Color(0xFFAFB7AC),
+        backgroundColor: const Color(0xFF131D4F),
         foregroundColor: Colors.white,
       ),
       body: _isLoading
